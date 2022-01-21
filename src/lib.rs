@@ -1,3 +1,8 @@
+pub mod perfdata;
+mod thresholds;
+
+type Value = f64;
+
 #[cfg(test)]
 mod tests {
     #[test]

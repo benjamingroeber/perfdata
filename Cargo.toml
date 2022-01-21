@@ -1,0 +1,10 @@
+[package]
+name = "perfdata"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Parsing and handling performance data for monitoring engines like Nagios, Icinga2, ..."
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

@@ -1,3 +1,5 @@
+mod error;
+mod parser;
 pub mod perfdata;
 mod thresholds;
 

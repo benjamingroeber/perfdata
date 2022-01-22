@@ -68,18 +68,22 @@ impl<'a> Perfdata<'a> {
         Self::new(label, Unit::Undetermined)
     }
 
+    #[must_use]
     pub fn with_min<T: Into<Value>>(mut self, value: T) -> Self {
         self.min = Some(value.into());
         self
     }
+    #[must_use]
     pub fn with_max<T: Into<Value>>(mut self, value: T) -> Self {
         self.max = Some(value.into());
         self
     }
+    #[must_use]
     pub fn with_warn(mut self, range: ThresholdRange) -> Self {
         self.warn = Some(range);
         self
     }
+    #[must_use]
     pub fn with_crit(mut self, range: ThresholdRange) -> Self {
         self.crit = Some(range);
         self

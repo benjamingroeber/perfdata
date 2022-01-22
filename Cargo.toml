@@ -8,6 +8,7 @@ description = "Parsing and handling performance data for monitoring engines like
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+thiserror = "1.0"
 # Enables the `derive` feature of serde.
 serde = { version = "1.0.118", features = ["derive"], optional=true}
 

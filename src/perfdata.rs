@@ -6,6 +6,8 @@ use std::fmt::{Display, Formatter};
 #[cfg(test)]
 use strum::EnumIter;
 
+// Reference: https://nagios-plugins.org/doc/guidelines.html#AEN200
+
 #[cfg_attr(test, derive(EnumIter))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -34,12 +36,6 @@ impl Display for Unit {
 pub struct Perfdata<'a> {
     label: &'a str,
     unit: Unit,
-    thresholds: Option<Thresholds>,
-}
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Thresholds {
     warn: Option<ThresholdRange>,
     crit: Option<ThresholdRange>,
     min: Option<Value>,
@@ -47,33 +43,65 @@ pub struct Thresholds {
 }
 
 impl<'a> Perfdata<'a> {
+    fn new(label: &'a str, unit: Unit) -> Self {
+        Perfdata {
+            label,
+            unit,
+            warn: None,
+            crit: None,
+            min: None,
+            max: None,
+        }
+    }
+
     // TODO find a new name
     pub fn unit<T: Into<Value>>(label: &'a str, value: T) -> Self {
-        Perfdata {
-            label,
-            unit: Unit::None(value.into()),
-            thresholds: None,
-        }
+        Self::new(label, Unit::None(value.into()))
     }
     pub fn percentage<T: Into<Value>>(label: &'a str, value: T) -> Self {
-        Perfdata {
-            label,
-            unit: Unit::Percentage(value.into()),
-            thresholds: None,
-        }
+        Self::new(label, Unit::Percentage(value.into()))
     }
     pub fn seconds<T: Into<Value>>(label: &'a str, value: T) -> Self {
-        Perfdata {
-            label,
-            unit: Unit::Seconds(value.into()),
-            thresholds: None,
-        }
+        Self::new(label, Unit::Seconds(value.into()))
     }
     pub fn undetermined(label: &'a str) -> Self {
-        Perfdata {
-            label,
-            unit: Unit::Undetermined,
-            thresholds: None,
+        Self::new(label, Unit::Undetermined)
+    }
+
+    pub fn with_min<T: Into<Value>>(mut self, value: T) -> Self {
+        self.min = Some(value.into());
+        self
+    }
+    pub fn with_max<T: Into<Value>>(mut self, value: T) -> Self {
+        self.max = Some(value.into());
+        self
+    }
+    pub fn with_warn(mut self, range: ThresholdRange) -> Self {
+        self.warn = Some(range);
+        self
+    }
+    pub fn with_crit(mut self, range: ThresholdRange) -> Self {
+        self.crit = Some(range);
+        self
+    }
+
+    pub fn is_warn(&self) -> bool {
+        match self.value() {
+            Some(value) => self
+                .warn
+                .map(|range| range.is_alert(value))
+                .unwrap_or(false),
+            None => false,
+        }
+    }
+
+    pub fn is_crit(&self) -> bool {
+        match self.value() {
+            Some(value) => self
+                .crit
+                .map(|range| range.is_alert(value))
+                .unwrap_or(false),
+            None => false,
         }
     }
 
@@ -138,5 +166,22 @@ mod tests {
                 }
             };
         }
+    }
+
+    #[test]
+    fn test_warn_crit() {
+        let warn = Perfdata::unit("warn", 10)
+            .with_warn(ThresholdRange::above_pos(5))
+            .with_crit(ThresholdRange::above_pos(15));
+
+        let crit = Perfdata::unit("warn", 20)
+            .with_warn(ThresholdRange::above_pos(5))
+            .with_crit(ThresholdRange::above_pos(15));
+
+        assert!(warn.is_warn());
+        assert!(!warn.is_crit());
+
+        assert!(crit.is_warn());
+        assert!(crit.is_crit())
     }
 }

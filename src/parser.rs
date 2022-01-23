@@ -45,12 +45,10 @@ impl<'a> TryFrom<&'a str> for Perfdata<'a> {
             };
 
             if let Some(warn) = datapoints.next() {
-                println!("warn: {warn}");
                 let parsed_warn = ThresholdRange::from_str(warn)?;
                 perfdata = perfdata.with_warn(parsed_warn);
             }
             if let Some(crit) = datapoints.next() {
-                println!("crit: {crit}");
                 let parsed_crit = ThresholdRange::from_str(crit)?;
                 perfdata = perfdata.with_crit(parsed_crit);
             }

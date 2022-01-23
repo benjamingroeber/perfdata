@@ -38,7 +38,7 @@ impl<'a> TryFrom<&'a str> for Perfdata<'a> {
             .ok_or(PerfdataParseError::MissingEqualsSign)?;
 
         let mut datapoints = data.split(DATA_DELIMITER);
-        let value = datapoints.next().ok_or(PerfdataParseError::MissingValue)?;
+        let value = next_datapoint(&mut datapoints).ok_or(PerfdataParseError::MissingValue)?;
         let mut perfdata = if value == "U" || value == "u" {
             Perfdata::undetermined(label)
         } else {

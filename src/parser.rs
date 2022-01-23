@@ -27,34 +27,29 @@ use std::str::FromStr;
 
 const LABEL_DELIMITER: char = '=';
 const DATA_DELIMITER: char = ';';
+const LABEL_QUOTE: char = '\'';
 
 impl<'a> TryFrom<&'a str> for Perfdata<'a> {
     type Error = PerfdataParseError;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        // labels can't contain equals signs, so the first one must delimit our label
+        // Labels can't contain equals signs, so the first one must delimit the label from the data
         let (label, data) = value
             .split_once(LABEL_DELIMITER)
             .ok_or(PerfdataParseError::MissingEqualsSign)?;
 
+        let parsed_label = parse_label(label)?;
+
+        // Datapoints are the Value and Thresholds, delimited by ;
         let mut datapoints = data.split(DATA_DELIMITER);
+
+        // The first datapoint must be the value, and it must not be empty
         let value = next_datapoint(&mut datapoints).ok_or(PerfdataParseError::MissingValue)?;
-        let mut perfdata = if value == "U" || value == "u" {
-            Perfdata::undetermined(label)
-        } else {
-            let (parsed_value, unit) = parse_value(value)?;
 
-            match unit {
-                "" => Perfdata::unit(label, parsed_value),
-                "s" => Perfdata::seconds(label, parsed_value),
-                "b" => Perfdata::bytes(label, parsed_value),
-                "c" => Perfdata::counter(label, parsed_value),
-                "%" => Perfdata::percentage(label, parsed_value),
-                // TODO evaluate allowing all units?
-                _ => return Err(PerfdataParseError::UnknownUnit(unit.to_string())),
-            }
-        };
+        // With the label, and the value we can construct a simple Perfdata struct
+        let mut perfdata = parse_perfdata_with_unit(parsed_label, value)?;
 
+        // Warn, Crit, Min and Max are set conditionally, when they exist and are not empty
         if let Some(warn) = next_datapoint(&mut datapoints) {
             let parsed_warn = ThresholdRange::from_str(warn)?;
             perfdata = perfdata.with_warn(parsed_warn);
@@ -79,14 +74,53 @@ impl<'a> TryFrom<&'a str> for Perfdata<'a> {
     }
 }
 
-fn parse_value(input: &str) -> Result<(Value, &str), PerfdataParseError> {
-    let (value, unit) = input
-        .find(|c: char| c != '.' && c != '-' && !c.is_ascii_digit())
-        .map(|split_at| input.split_at(split_at))
-        .unwrap_or((input, ""));
+fn parse_label(input: &str) -> Result<&str, PerfdataParseError> {
+    let mut label = input;
 
-    let parsed_value = value.parse()?;
-    Ok((parsed_value, unit))
+    // labels can be surrounded by single quotes, and must do so, if the label contains a space
+    // as labels are stored as &str, we strip them before processing
+    if label.starts_with(LABEL_QUOTE) && label.ends_with(LABEL_QUOTE) {
+        label = &label[1..label.len() - 1]
+    }
+
+    // no quotes may be contained from here on
+    if label.contains(LABEL_QUOTE) {
+        return Err(PerfdataParseError::LabelContainsSingleQuote);
+    }
+
+    if label.is_empty() {
+        return Err(PerfdataParseError::MissingLabel);
+    }
+
+    Ok(label)
+}
+
+fn parse_perfdata_with_unit<'a>(
+    label: &'a str,
+    value: &'a str,
+) -> Result<Perfdata<'a>, PerfdataParseError> {
+    if value == "U" || value == "u" {
+        return Ok(Perfdata::undetermined(label));
+    }
+
+    let (value, unit) = value
+        .find(|c: char| c != '.' && c != '-' && !c.is_ascii_digit())
+        .map(|split_at| value.split_at(split_at))
+        .unwrap_or((value, ""));
+
+    let parsed_value: Value = value.parse()?;
+
+    let perfdata = match unit {
+        "" => Perfdata::unit(label, parsed_value),
+        "s" => Perfdata::seconds(label, parsed_value),
+        "b" => Perfdata::bytes(label, parsed_value),
+        "c" => Perfdata::counter(label, parsed_value),
+        "%" => Perfdata::percentage(label, parsed_value),
+        // TODO evaluate allowing all units?
+        _ => return Err(PerfdataParseError::UnknownUnit(unit.to_string())),
+    };
+
+    Ok(perfdata)
 }
 
 fn next_datapoint<'a>(mut datapoints: impl Iterator<Item = &'a str>) -> Option<&'a str> {
@@ -371,5 +405,46 @@ mod tests {
             got_err_empty,
             Err(PerfdataParseError::ThresholdEmpty)
         ));
+    }
+
+    #[test]
+    fn test_label_quoting() {
+        let quoted = "'label'=10";
+        let exp_quoted = "label";
+
+        let quoted_with_space = "'la bel'=10";
+        let exp_quoted_with_space = "la bel";
+
+        let extra_start = "'label=1";
+        let extra_end = "label'=1";
+        let extra_middle = "'la'bel'=1";
+
+        let empty = "=1";
+        let empty_quoted = "''=1";
+
+        let parsed_quoted = Perfdata::try_from(quoted).unwrap();
+        let parsed_quoted_with_space = Perfdata::try_from(quoted_with_space).unwrap();
+        let parsed_extra_start = Perfdata::try_from(extra_start);
+        let parsed_extra_end = Perfdata::try_from(extra_end);
+        let parsed_extra_middle = Perfdata::try_from(extra_middle);
+        let parsed_empty = Perfdata::try_from(empty);
+        let parsed_empty_quoted = Perfdata::try_from(empty_quoted);
+
+        assert_eq!(parsed_quoted.label(), exp_quoted);
+        assert_eq!(parsed_quoted_with_space.label(), exp_quoted_with_space);
+        assert_eq!(
+            parsed_extra_start,
+            Err(PerfdataParseError::LabelContainsSingleQuote)
+        );
+        assert_eq!(
+            parsed_extra_end,
+            Err(PerfdataParseError::LabelContainsSingleQuote)
+        );
+        assert_eq!(
+            parsed_extra_middle,
+            Err(PerfdataParseError::LabelContainsSingleQuote)
+        );
+        assert_eq!(parsed_empty, Err(PerfdataParseError::MissingLabel));
+        assert_eq!(parsed_empty_quoted, Err(PerfdataParseError::MissingLabel));
     }
 }

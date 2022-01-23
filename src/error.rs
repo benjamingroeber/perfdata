@@ -9,6 +9,8 @@ pub enum PerfdataParseError {
     MissingValue,
     #[error("value is not a number")]
     ParseValueError(#[from] ParseFloatError),
+    #[error("threshold may not be empty for parsing")]
+    ThresholdEmpty,
     #[error("the string `{0}` is not valid performance data")]
     ParsingError(String),
 }

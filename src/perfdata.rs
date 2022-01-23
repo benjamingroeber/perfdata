@@ -145,15 +145,23 @@ mod tests {
 
     #[test]
     fn test_creation() {
+        let label = "test";
         for unit in Unit::iter() {
-            match unit {
-                Unit::None(_) => Perfdata::unit("unit", 0),
-                Unit::Percentage(_) => Perfdata::percentage("percentage", 0.0),
-                Unit::Seconds(_) => Perfdata::seconds("seconds", 0_u8),
-                Unit::Bytes(_) => Perfdata::bytes("bytes", 0_u16),
-                Unit::Counter(_) => Perfdata::counter("counter", 0.0_f32),
-                Unit::Undetermined => Perfdata::undetermined("undetermined"),
+            let perfdata = match unit {
+                Unit::None(_) => Perfdata::unit(label, 0),
+                Unit::Percentage(_) => Perfdata::percentage(label, 0.0),
+                Unit::Seconds(_) => Perfdata::seconds(label, 0_u8),
+                Unit::Bytes(_) => Perfdata::bytes(label, 0_u16),
+                Unit::Counter(_) => Perfdata::counter(label, 0.0_f32),
+                Unit::Undetermined => Perfdata::undetermined(label),
             };
+
+            let label_got = perfdata.label();
+
+            if let Some(value) = perfdata.value() {
+                assert_eq!(value, Value::default())
+            }
+            assert_eq!(label, label_got)
         }
     }
 
@@ -202,10 +210,21 @@ mod tests {
             .with_warn(ThresholdRange::above_pos(5))
             .with_crit(ThresholdRange::above_pos(15));
 
+        let no_thresholds = Perfdata::unit("no_thresholds", 30);
+        let undetermined = Perfdata::undetermined("undetermined")
+            .with_warn(ThresholdRange::above_pos(20))
+            .with_crit(ThresholdRange::above_pos(20));
+
         assert!(warn.is_warn());
         assert!(!warn.is_crit());
 
         assert!(crit.is_warn());
-        assert!(crit.is_crit())
+        assert!(crit.is_crit());
+
+        assert!(!no_thresholds.is_warn());
+        assert!(!no_thresholds.is_crit());
+
+        assert!(!undetermined.is_warn());
+        assert!(!undetermined.is_crit());
     }
 }

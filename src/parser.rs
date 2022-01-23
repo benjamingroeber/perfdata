@@ -186,6 +186,42 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_errors() {
+        let no_equals = "label 123";
+        let empty_value = "label=";
+        let empty_value_thresholds = "label=;20;30;0;100;";
+        let space_unit = "label=1 s";
+        let unknown_unit = "label=1x";
+
+        let got_no_equals = Perfdata::try_from(no_equals);
+        let got_empty_value = Perfdata::try_from(empty_value);
+        let got_empty_value_thresholds = Perfdata::try_from(empty_value_thresholds);
+        let got_space_unit = Perfdata::try_from(space_unit);
+        let got_unknown_unit = Perfdata::try_from(unknown_unit);
+
+        assert!(matches!(
+            got_no_equals,
+            Err(PerfdataParseError::MissingEqualsSign)
+        ));
+        assert!(matches!(
+            got_empty_value,
+            Err(PerfdataParseError::MissingValue)
+        ));
+        assert!(matches!(
+            got_empty_value_thresholds,
+            Err(PerfdataParseError::MissingValue)
+        ));
+        assert!(matches!(
+            got_space_unit,
+            Err(PerfdataParseError::UnknownUnit(_))
+        ));
+        assert!(matches!(
+            got_unknown_unit,
+            Err(PerfdataParseError::UnknownUnit(_))
+        ))
+    }
+
+    #[test]
     fn test_parse_omitted() {
         let no_warn = "no_w=10;;30;0;100;";
         let exp_no_warn = Perfdata::unit("no_w", 10)
@@ -303,16 +339,37 @@ mod tests {
         let inside = "@10:20";
         let exp_inside = ThresholdRange::inside(10, 20);
 
+        let number_err = "Nota:range";
+        let space_err = "12 34";
+        let emtpy_err = "";
+
         let got_unit = ThresholdRange::from_str(unit).unwrap();
         let got_omit_end = ThresholdRange::from_str(omit_end).unwrap();
         let got_neg_inf = ThresholdRange::from_str(neg_inf).unwrap();
         let got_outside = ThresholdRange::from_str(outside).unwrap();
         let got_inside = ThresholdRange::from_str(inside).unwrap();
 
+        let got_err_number = ThresholdRange::from_str(number_err);
+        let got_err_space = ThresholdRange::from_str(space_err);
+        let got_err_empty = ThresholdRange::from_str(emtpy_err);
+
         assert_eq!(exp_unit, got_unit);
         assert_eq!(exp_omit_end, got_omit_end);
         assert_eq!(exp_neg_inf, got_neg_inf);
         assert_eq!(exp_outside, got_outside);
         assert_eq!(exp_inside, got_inside);
+
+        assert!(matches!(
+            got_err_number,
+            Err(PerfdataParseError::ParseValueError(_))
+        ));
+        assert!(matches!(
+            got_err_space,
+            Err(PerfdataParseError::ParseValueError(_))
+        ));
+        assert!(matches!(
+            got_err_empty,
+            Err(PerfdataParseError::ThresholdEmpty)
+        ));
     }
 }

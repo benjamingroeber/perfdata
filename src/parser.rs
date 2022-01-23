@@ -33,38 +33,49 @@ impl<'a> TryFrom<&'a str> for Perfdata<'a> {
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         // labels can't contain equals signs, so the first one must delimit our label
-        if let Some((label, data)) = value.split_once(LABEL_DELIMITER) {
-            let mut datapoints = data.split(DATA_DELIMITER);
-            let value = datapoints.next().ok_or(PerfdataParseError::MissingValue)?;
-            let mut perfdata = if value == "U" || value == "u" {
-                // todo parse rest anyways
-                Perfdata::undetermined(label)
-            } else {
-                let parsed_value: Value = value.parse()?;
-                Perfdata::unit(label, parsed_value)
-            };
+        let (label, data) = value
+            .split_once(LABEL_DELIMITER)
+            .ok_or(PerfdataParseError::MissingEqualsSign)?;
 
-            if let Some(warn) = datapoints.next() {
-                let parsed_warn = ThresholdRange::from_str(warn)?;
-                perfdata = perfdata.with_warn(parsed_warn);
-            }
-            if let Some(crit) = datapoints.next() {
-                let parsed_crit = ThresholdRange::from_str(crit)?;
-                perfdata = perfdata.with_crit(parsed_crit);
-            }
-            if let Some(min) = datapoints.next() {
-                let parsed_min: Value = min.parse()?;
-                perfdata = perfdata.with_min(parsed_min);
-            }
-            if let Some(max) = datapoints.next() {
-                let parsed_max: Value = max.parse()?;
-                perfdata = perfdata.with_max(parsed_max);
-            }
-
-            Ok(perfdata)
+        let mut datapoints = data.split(DATA_DELIMITER);
+        let value = datapoints.next().ok_or(PerfdataParseError::MissingValue)?;
+        let mut perfdata = if value == "U" || value == "u" {
+            // TODO parse rest anyways
+            Perfdata::undetermined(label)
         } else {
-            Err(PerfdataParseError::MissingEqualsSign)
+            let parsed_value: Value = value.parse()?;
+            // TODO parse units
+            Perfdata::unit(label, parsed_value)
+        };
+
+        if let Some(warn) = next_datapoint(&mut datapoints) {
+            let parsed_warn = ThresholdRange::from_str(warn)?;
+            perfdata = perfdata.with_warn(parsed_warn);
         }
+
+        if let Some(crit) = next_datapoint(&mut datapoints) {
+            let parsed_crit = ThresholdRange::from_str(crit)?;
+            perfdata = perfdata.with_crit(parsed_crit);
+        }
+
+        if let Some(min) = next_datapoint(&mut datapoints) {
+            let parsed_min: Value = min.parse()?;
+            perfdata = perfdata.with_min(parsed_min);
+        }
+
+        if let Some(max) = next_datapoint(&mut datapoints) {
+            let parsed_max: Value = max.parse()?;
+            perfdata = perfdata.with_max(parsed_max);
+        }
+
+        Ok(perfdata)
+    }
+}
+
+fn next_datapoint<'a>(mut datapoints: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+    match datapoints.next() {
+        Some(datapoint) if !datapoint.is_empty() => Some(datapoint),
+        _ => None,
     }
 }
 
@@ -140,7 +151,6 @@ mod tests {
     fn test_parse_simple() {
         let perfdata = "label=42";
         let perfdata_long = "label2=10;20;30;0;100;";
-        // todo perfdata_unit
 
         let expected_long = Perfdata::unit("label2", 10)
             .with_warn(ThresholdRange::above_pos(20))
@@ -154,6 +164,40 @@ mod tests {
 
         assert_eq!(expected, got);
         assert_eq!(expected_long, got_long);
+    }
+
+    #[test]
+    fn test_parse_omitted() {
+        let no_warn = "no_w=10;;30;0;100;";
+        let exp_no_warn = Perfdata::unit("no_w", 10)
+            .with_crit(ThresholdRange::above_pos(30))
+            .with_min(0)
+            .with_max(100);
+
+        let no_crit = "no_c=10;20;;0;100";
+        let exp_no_crit = Perfdata::unit("no_c", 10)
+            .with_warn(ThresholdRange::above_pos(20))
+            .with_min(0)
+            .with_max(100);
+
+        let no_min = "no_m=10;20;30;;100";
+        let exp_no_min = Perfdata::unit("no_m", 10)
+            .with_warn(ThresholdRange::above_pos(20))
+            .with_crit(ThresholdRange::above_pos(30))
+            .with_max(100);
+
+        let just_min = "just_m=10;;;0;";
+        let exp_just_min = Perfdata::unit("just_m", 10).with_min(0);
+
+        let got_no_warn = Perfdata::try_from(no_warn).unwrap();
+        let got_no_crit = Perfdata::try_from(no_crit).unwrap();
+        let got_no_min = Perfdata::try_from(no_min).unwrap();
+        let got_just_min = Perfdata::try_from(just_min).unwrap();
+
+        assert_eq!(exp_no_warn, got_no_warn);
+        assert_eq!(exp_no_crit, got_no_crit);
+        assert_eq!(exp_no_min, got_no_min);
+        assert_eq!(exp_just_min, got_just_min);
     }
 
     // TODO

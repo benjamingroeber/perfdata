@@ -40,12 +40,19 @@ impl<'a> TryFrom<&'a str> for Perfdata<'a> {
         let mut datapoints = data.split(DATA_DELIMITER);
         let value = datapoints.next().ok_or(PerfdataParseError::MissingValue)?;
         let mut perfdata = if value == "U" || value == "u" {
-            // TODO parse rest anyways
             Perfdata::undetermined(label)
         } else {
-            let parsed_value: Value = value.parse()?;
-            // TODO parse units
-            Perfdata::unit(label, parsed_value)
+            let (parsed_value, unit) = parse_value(value)?;
+
+            match unit {
+                "" => Perfdata::unit(label, parsed_value),
+                "s" => Perfdata::seconds(label, parsed_value),
+                "b" => Perfdata::bytes(label, parsed_value),
+                "c" => Perfdata::counter(label, parsed_value),
+                "%" => Perfdata::percentage(label, parsed_value),
+                // TODO evaluate allowing all units?
+                _ => return Err(PerfdataParseError::UnknownUnit(unit.to_string())),
+            }
         };
 
         if let Some(warn) = next_datapoint(&mut datapoints) {
@@ -70,6 +77,16 @@ impl<'a> TryFrom<&'a str> for Perfdata<'a> {
 
         Ok(perfdata)
     }
+}
+
+fn parse_value(input: &str) -> Result<(Value, &str), PerfdataParseError> {
+    let (value, unit) = input
+        .find(|c: char| c != '.' && c != '-' && !c.is_ascii_digit())
+        .map(|split_at| input.split_at(split_at))
+        .unwrap_or((input, ""));
+
+    let parsed_value = value.parse()?;
+    Ok((parsed_value, unit))
 }
 
 fn next_datapoint<'a>(mut datapoints: impl Iterator<Item = &'a str>) -> Option<&'a str> {
@@ -145,7 +162,9 @@ fn parse_range(range: &str, default: Value) -> Result<Value, PerfdataParseError>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::perfdata::Unit;
     use crate::thresholds::ThresholdRange;
+    use strum::IntoEnumIterator;
 
     #[test]
     fn test_parse_simple() {
@@ -200,9 +219,71 @@ mod tests {
         assert_eq!(exp_just_min, got_just_min);
     }
 
-    // TODO
     #[test]
-    fn test_parse_units() {}
+    fn test_parse_undetermined_thresholds() {
+        let perfdata = "test=U;10;20;0;100";
+        let expected = Perfdata::undetermined("test")
+            .with_warn(ThresholdRange::above_pos(10))
+            .with_crit(ThresholdRange::above_pos(20))
+            .with_min(0)
+            .with_max(100);
+
+        let parsed = Perfdata::try_from(perfdata).unwrap();
+
+        assert_eq!(expected, parsed)
+    }
+
+    #[test]
+    fn test_parse_units_with_thresholds() {
+        let seconds = "seconds=10s;20;30;0;40";
+        let expected_seconds = Perfdata::seconds("seconds", 10)
+            .with_warn(ThresholdRange::above_pos(20))
+            .with_crit(ThresholdRange::above_pos(30))
+            .with_min(0)
+            .with_max(40);
+
+        let parsed_seconds = Perfdata::try_from(seconds).unwrap();
+
+        assert_eq!(expected_seconds, parsed_seconds);
+    }
+
+    #[test]
+    fn test_units() {
+        let label = "test";
+        let value = 0;
+        for unit in Unit::iter() {
+            match unit {
+                Unit::None(_) => {
+                    assert_eq!(
+                        Perfdata::try_from("test=0").unwrap(),
+                        Perfdata::unit(label, value)
+                    )
+                }
+                Unit::Percentage(_) => assert_eq!(
+                    Perfdata::try_from("test=0%").unwrap(),
+                    Perfdata::percentage(label, value)
+                ),
+                Unit::Seconds(_) => assert_eq!(
+                    Perfdata::try_from("test=0s").unwrap(),
+                    Perfdata::seconds(label, value)
+                ),
+                Unit::Bytes(_) => {
+                    assert_eq!(
+                        Perfdata::try_from("test=0b").unwrap(),
+                        Perfdata::bytes(label, value)
+                    )
+                }
+                Unit::Counter(_) => assert_eq!(
+                    Perfdata::try_from("test=0c").unwrap(),
+                    Perfdata::counter(label, value)
+                ),
+                Unit::Undetermined => assert_eq!(
+                    Perfdata::try_from("test=U").unwrap(),
+                    Perfdata::undetermined(label)
+                ),
+            };
+        }
+    }
 
     #[test]
     fn test_example_ranges() {

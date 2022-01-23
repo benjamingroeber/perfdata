@@ -11,6 +11,8 @@ pub enum PerfdataParseError {
     ParseValueError(#[from] ParseFloatError),
     #[error("threshold may not be empty for parsing")]
     ThresholdEmpty,
+    #[error("unknown unit `{0}`")]
+    UnknownUnit(String),
     #[error("the string `{0}` is not valid performance data")]
     ParsingError(String),
 }

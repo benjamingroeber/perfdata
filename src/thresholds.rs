@@ -13,8 +13,13 @@ pub struct ThresholdRange {
 }
 
 impl ThresholdRange {
-    fn new(inside: bool, start: Value, end: Value) -> Self {
-        // TODO handle end < start
+    fn new(inside: bool, mut start: Value, mut end: Value) -> Self {
+        // We are a little more permissive than the spec here
+        // start and end are swapped only if it makes sense
+        if end < start {
+            std::mem::swap(&mut start, &mut end)
+        }
+
         ThresholdRange {
             alert_inside: inside,
             start,

@@ -15,9 +15,9 @@ pub enum Unit {
     None(Value),
     Percentage(Value),
     Seconds(Value),
+    Bytes(Value),
+    Counter(Value),
     Undetermined,
-    // Bytes,
-    // Continuous Counter
 }
 
 impl Display for Unit {
@@ -26,6 +26,8 @@ impl Display for Unit {
             Unit::None(u) => write!(f, "{}", u),
             Unit::Percentage(u) => write!(f, "{}%", u),
             Unit::Seconds(u) => write!(f, "{}s", u),
+            Unit::Bytes(u) => write!(f, "{}b", u),
+            Unit::Counter(u) => write!(f, "{}c", u),
             Unit::Undetermined => write!(f, "U"),
         }
     }
@@ -63,6 +65,12 @@ impl<'a> Perfdata<'a> {
     }
     pub fn seconds<T: Into<Value>>(label: &'a str, value: T) -> Self {
         Self::new(label, Unit::Seconds(value.into()))
+    }
+    pub fn bytes<T: Into<Value>>(label: &'a str, value: T) -> Self {
+        Self::new(label, Unit::Bytes(value.into()))
+    }
+    pub fn counter<T: Into<Value>>(label: &'a str, value: T) -> Self {
+        Self::new(label, Unit::Counter(value.into()))
     }
     pub fn undetermined(label: &'a str) -> Self {
         Self::new(label, Unit::Undetermined)
@@ -114,6 +122,8 @@ impl<'a> Perfdata<'a> {
             Unit::None(v) => Some(v),
             Unit::Percentage(v) => Some(v),
             Unit::Seconds(v) => Some(v),
+            Unit::Bytes(v) => Some(v),
+            Unit::Counter(v) => Some(v),
             Unit::Undetermined => None,
         }
     }
@@ -139,7 +149,9 @@ mod tests {
             match unit {
                 Unit::None(_) => Perfdata::unit("unit", 0),
                 Unit::Percentage(_) => Perfdata::percentage("percentage", 0.0),
-                Unit::Seconds(_) => Perfdata::seconds("seconds", 0u8),
+                Unit::Seconds(_) => Perfdata::seconds("seconds", 0_u8),
+                Unit::Bytes(_) => Perfdata::bytes("bytes", 0_u16),
+                Unit::Counter(_) => Perfdata::counter("counter", 0.0_f32),
                 Unit::Undetermined => Perfdata::undetermined("undetermined"),
             };
         }
@@ -162,6 +174,14 @@ mod tests {
                         "'seconds'=1.234s"
                     )
                 }
+                Unit::Bytes(_) => assert_eq!(
+                    Perfdata::bytes("bytes", 0.0001).to_string(),
+                    "'bytes'=0.0001b"
+                ),
+                Unit::Counter(_) => assert_eq!(
+                    Perfdata::counter("counter", 12345).to_string(),
+                    "'counter'=12345c"
+                ),
                 Unit::Undetermined => {
                     assert_eq!(
                         Perfdata::undetermined("undetermined").to_string(),

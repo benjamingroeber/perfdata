@@ -74,6 +74,14 @@ impl<'a> TryFrom<&'a str> for Perfdata<'a> {
     }
 }
 
+impl<'a> TryFrom<&'a String> for Perfdata<'a> {
+    type Error = PerfdataParseError;
+
+    fn try_from(value: &'a String) -> Result<Self, Self::Error> {
+        Perfdata::try_from(value.as_str())
+    }
+}
+
 fn parse_label(input: &str) -> Result<&str, PerfdataParseError> {
     let mut label = input;
 
@@ -458,10 +466,10 @@ mod tests {
             .with_max(100);
 
         let fmt_simple = simple.to_string();
-        let parsed_simple = Perfdata::try_from(fmt_simple.as_str()).unwrap();
+        let parsed_simple = Perfdata::try_from(&fmt_simple).unwrap();
 
         let fmt_full = full.to_string();
-        let parsed_full = Perfdata::try_from(fmt_full.as_str()).unwrap();
+        let parsed_full = Perfdata::try_from(&fmt_full).unwrap();
 
         assert_eq!(simple, parsed_simple);
         assert_eq!(full, parsed_full);

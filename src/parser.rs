@@ -447,4 +447,23 @@ mod tests {
         assert_eq!(parsed_empty, Err(PerfdataParseError::MissingLabel));
         assert_eq!(parsed_empty_quoted, Err(PerfdataParseError::MissingLabel));
     }
+
+    #[test]
+    fn test_format_and_parse_back() {
+        let simple = Perfdata::unit("simple", 10);
+        let full = Perfdata::bytes("full", 10)
+            .with_warn(ThresholdRange::above_pos(20))
+            .with_crit(ThresholdRange::above_pos(30))
+            .with_min(0)
+            .with_max(100);
+
+        let fmt_simple = simple.to_string();
+        let parsed_simple = Perfdata::try_from(fmt_simple.as_str()).unwrap();
+
+        let fmt_full = full.to_string();
+        let parsed_full = Perfdata::try_from(fmt_full.as_str()).unwrap();
+
+        assert_eq!(simple, parsed_simple);
+        assert_eq!(full, parsed_full);
+    }
 }

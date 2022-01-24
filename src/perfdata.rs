@@ -117,6 +117,10 @@ impl<'a> Perfdata<'a> {
         }
     }
 
+    pub fn has_any_thresholds(&self) -> bool {
+        self.warn.is_some() || self.crit.is_some() || self.min.is_some() || self.max.is_some()
+    }
+
     pub fn value(&self) -> Option<Value> {
         match self.unit {
             Unit::None(v) => Some(v),
@@ -132,9 +136,24 @@ impl<'a> Perfdata<'a> {
     }
 }
 
+fn fmt_threshold<T: Display>(f: &mut Formatter<'_>, th: Option<T>) -> std::fmt::Result {
+    match th {
+        None => write!(f, ";"),
+        Some(threshold) => write!(f, "{};", threshold),
+    }
+}
+
 impl Display for Perfdata<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}'={}", self.label, self.unit)
+        write!(f, "'{}'={};", self.label, self.unit)?;
+
+        if self.has_any_thresholds() {
+            fmt_threshold(f, self.warn)?;
+            fmt_threshold(f, self.crit)?;
+            fmt_threshold(f, self.min)?;
+            fmt_threshold(f, self.max)?;
+        }
+        Ok(())
     }
 }
 
@@ -169,32 +188,111 @@ mod tests {
     fn test_format() {
         for unit in Unit::iter() {
             match unit {
-                Unit::None(_) => assert_eq!(Perfdata::unit("unit", 0).to_string(), "'unit'=0"),
+                Unit::None(_) => assert_eq!(Perfdata::unit("unit", 0).to_string(), "'unit'=0;"),
                 Unit::Percentage(_) => {
                     assert_eq!(
                         Perfdata::percentage("percentage", 50).to_string(),
-                        "'percentage'=50%"
+                        "'percentage'=50%;"
                     )
                 }
                 Unit::Seconds(_) => {
                     assert_eq!(
                         Perfdata::seconds("seconds", 1.234).to_string(),
-                        "'seconds'=1.234s"
+                        "'seconds'=1.234s;"
                     )
                 }
                 Unit::Bytes(_) => assert_eq!(
                     Perfdata::bytes("bytes", 0.0001).to_string(),
-                    "'bytes'=0.0001b"
+                    "'bytes'=0.0001b;"
                 ),
                 Unit::Counter(_) => assert_eq!(
                     Perfdata::counter("counter", 12345).to_string(),
-                    "'counter'=12345c"
+                    "'counter'=12345c;"
                 ),
                 Unit::Undetermined => {
                     assert_eq!(
                         Perfdata::undetermined("undetermined").to_string(),
-                        "'undetermined'=U"
+                        "'undetermined'=U;"
                     )
+                }
+            };
+        }
+    }
+
+    #[test]
+    fn test_format_partial_thresholds() {
+        let just_warn = Perfdata::unit("label", 10).with_warn(ThresholdRange::above_pos(20));
+        let just_crit = Perfdata::unit("label", 10).with_crit(ThresholdRange::above_pos(30));
+        let just_min = Perfdata::unit("label", 10).with_min(0);
+        let just_max = Perfdata::unit("label", 10).with_max(100);
+
+        let f_warn = just_warn.to_string();
+        let f_crit = just_crit.to_string();
+        let f_min = just_min.to_string();
+        let f_max = just_max.to_string();
+
+        assert_eq!(f_warn, "'label'=10;20;;;;");
+        assert_eq!(f_crit, "'label'=10;;30;;;");
+        assert_eq!(f_min, "'label'=10;;;0;;");
+        assert_eq!(f_max, "'label'=10;;;;100;");
+    }
+
+    #[test]
+    fn test_format_thresholds() {
+        let warn = ThresholdRange::above_pos(20);
+        let crit = ThresholdRange::above_pos(30);
+        let min = -50;
+        let max = 50;
+
+        for unit in Unit::iter() {
+            match unit {
+                Unit::None(_) => {
+                    let unit = Perfdata::unit("unit", 0)
+                        .with_warn(warn)
+                        .with_crit(crit)
+                        .with_min(min)
+                        .with_max(max);
+                    assert_eq!(unit.to_string(), "'unit'=0;20;30;-50;50;")
+                }
+                Unit::Percentage(_) => {
+                    let percentage = Perfdata::percentage("percentage", 50)
+                        .with_warn(warn)
+                        .with_crit(crit)
+                        .with_min(min)
+                        .with_max(max);
+                    assert_eq!(percentage.to_string(), "'percentage'=50%;20;30;-50;50;")
+                }
+                Unit::Seconds(_) => {
+                    let seconds = Perfdata::seconds("seconds", 1.234)
+                        .with_warn(warn)
+                        .with_crit(crit)
+                        .with_min(min)
+                        .with_max(max);
+                    assert_eq!(seconds.to_string(), "'seconds'=1.234s;20;30;-50;50;")
+                }
+                Unit::Bytes(_) => {
+                    let bytes = Perfdata::bytes("bytes", 0.0001)
+                        .with_warn(warn)
+                        .with_crit(crit)
+                        .with_min(min)
+                        .with_max(max);
+                    assert_eq!(bytes.to_string(), "'bytes'=0.0001b;20;30;-50;50;")
+                }
+                Unit::Counter(_) => {
+                    let counter = Perfdata::counter("counter", 12345)
+                        .with_warn(warn)
+                        .with_crit(crit)
+                        .with_min(min)
+                        .with_max(max);
+                    assert_eq!(counter.to_string(), "'counter'=12345c;20;30;-50;50;")
+                }
+                Unit::Undetermined => {
+                    let undetermined = Perfdata::undetermined("undetermined")
+                        .with_warn(warn)
+                        .with_crit(crit)
+                        .with_min(min)
+                        .with_max(max);
+                    assert_eq!(undetermined.to_string(), "'undetermined'=U;20;30;-50;50;")
                 }
             };
         }

@@ -1,6 +1,7 @@
 use crate::Value;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 // Reference: https://nagios-plugins.org/doc/guidelines.html#THRESHOLDFORMAT
 
@@ -60,6 +61,22 @@ impl ThresholdRange {
             is_inside
         } else {
             !is_inside
+        }
+    }
+}
+
+impl Display for ThresholdRange {
+    // this could be avoided with `(start,end) if start == foo && end == bar` but it's a lot uglier
+    #[allow(illegal_floating_point_literal_pattern)]
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let inside = if self.alert_inside { "@" } else { "" };
+
+        match (self.start, self.end) {
+            (Value::NEG_INFINITY, Value::INFINITY) => write!(f, "{}~:", inside),
+            (0.0, Value::INFINITY) => write!(f, "{}0:", inside),
+            (0.0, end) => write!(f, "{}{}", inside, end),
+            (Value::NEG_INFINITY, end) => write!(f, "{}~:{}", inside, end),
+            (start, end) => write!(f, "{}{}:{}", inside, start, end),
         }
     }
 }

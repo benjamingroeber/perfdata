@@ -1,7 +1,9 @@
 mod error;
 mod parser;
-pub mod perfdata;
+mod perfdata;
 mod thresholds;
+
+pub use perfdata::Perfdata;
 
 type Value = f64;
 

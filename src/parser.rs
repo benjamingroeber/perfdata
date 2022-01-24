@@ -83,7 +83,7 @@ impl<'a> TryFrom<&'a String> for Perfdata<'a> {
 }
 
 fn parse_label(input: &str) -> Result<&str, PerfdataParseError> {
-    let mut label = input;
+    let mut label = input.trim();
 
     // labels can be surrounded by single quotes, and must do so, if the label contains a space
     // as labels are stored as &str, we strip them before processing
@@ -201,12 +201,59 @@ fn parse_range(range: &str, default: Value) -> Result<Value, PerfdataParseError>
     Ok(range.parse()?)
 }
 
+impl<'a> Perfdata<'a> {
+    pub fn parse_from_list(s: &'a str) -> Vec<Result<Self, PerfdataParseError>> {
+        let mut remainder = s.trim();
+        let mut perfdata = Vec::new();
+
+        // Perfdata are delimited by spaces, but labels can contain spaces. To avoid handling that,
+        // first we search until the next equals sign, which are not allowed in labels.
+        while let Some(equals_idx) = remainder.find('=') {
+            // Then we search until the next space, or the end of the input.
+            if let Some(data_idx) = &remainder[equals_idx..].find(' ') {
+                let (left, right) = remainder.split_at(equals_idx + data_idx);
+                if !left.is_empty() {
+                    perfdata.push(Perfdata::try_from(left));
+                }
+                remainder = right;
+            } else {
+                perfdata.push(Perfdata::try_from(remainder));
+                remainder = "";
+            }
+        }
+
+        perfdata
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::perfdata::Unit;
     use crate::thresholds::ThresholdRange;
     use strum::IntoEnumIterator;
+
+    #[test]
+    fn test_parse_list() {
+        let list = " label=10;20;30;0;40;  'foo'=0s; 'with space'=42 'with two spaces'=2     'with  ma ny   spaces'=6   ";
+
+        let parsed = Perfdata::parse_from_list(list);
+
+        assert_eq!(
+            parsed,
+            vec![
+                Ok(Perfdata::unit("label", 10)
+                    .with_warn(ThresholdRange::above_pos(20))
+                    .with_crit(ThresholdRange::above_pos(30))
+                    .with_min(0)
+                    .with_max(40)),
+                Ok(Perfdata::seconds("foo", 0)),
+                Ok(Perfdata::unit("with space", 42)),
+                Ok(Perfdata::unit("with two spaces", 2)),
+                Ok(Perfdata::unit("with  ma ny   spaces", 6))
+            ]
+        )
+    }
 
     #[test]
     fn test_parse_simple() {

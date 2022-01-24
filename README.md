@@ -59,6 +59,13 @@ let input = "'some perfdata'=42;@75:80;80";
 let perfdata = Perfdata::try_from(input).unwrap();
 ```
 
+Usually more than one Performance Datapoint are generated in a space delimited list.
+These can be parsed using the `Perfdata::parse_from_list()` helper method into a `Vec<Result<Perfdata,PerfdataParseError>>`.
+```rust
+let input = "'some perfdata'=42;66;75;0;100; 'foo'=23 bar=10"
+let perfdata = Perfdata::parse_from_list(input);
+```
+
 ### License
 Licensed under either of [Apache License](./LICENSE-APACHE), Version 2.0 or [MIT license](./LICENSE-MIT) at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted for

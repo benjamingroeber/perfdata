@@ -4,6 +4,7 @@ mod perfdata;
 mod thresholds;
 
 pub use perfdata::Perfdata;
+pub use thresholds::ThresholdRange;
 
 type Value = f64;
 

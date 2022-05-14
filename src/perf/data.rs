@@ -1,37 +1,9 @@
+use crate::monitoring_status::MonitoringStatus;
+use crate::perf::{Unit, Value};
 use crate::thresholds::ThresholdRange;
-use crate::Value;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-#[cfg(test)]
-use strum::EnumIter;
-
-// Reference: https://nagios-plugins.org/doc/guidelines.html#AEN200
-
-#[cfg_attr(test, derive(EnumIter))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Unit {
-    None(Value),
-    Percentage(Value),
-    Seconds(Value),
-    Bytes(Value),
-    Counter(Value),
-    Undetermined,
-}
-
-impl Display for Unit {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Unit::None(u) => write!(f, "{}", u),
-            Unit::Percentage(u) => write!(f, "{}%", u),
-            Unit::Seconds(u) => write!(f, "{}s", u),
-            Unit::Bytes(u) => write!(f, "{}b", u),
-            Unit::Counter(u) => write!(f, "{}c", u),
-            Unit::Undetermined => write!(f, "U"),
-        }
-    }
-}
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -114,6 +86,16 @@ impl<'a> Perfdata<'a> {
                 .map(|range| range.is_alert(value))
                 .unwrap_or(false),
             None => false,
+        }
+    }
+
+    pub fn status(&self) -> MonitoringStatus {
+        if self.is_crit() {
+            MonitoringStatus::Critical
+        } else if self.is_warn() {
+            MonitoringStatus::Warning
+        } else {
+            MonitoringStatus::OK
         }
     }
 

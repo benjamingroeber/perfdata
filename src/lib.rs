@@ -1,18 +1,9 @@
 mod error;
-mod parser;
-mod perfdata;
+mod monitoring_status;
+mod perf;
 mod thresholds;
 
-pub use perfdata::Perfdata;
+pub use monitoring_status::MonitoringStatus;
+pub use perf::Perfdata;
+pub use perf::PerfdataSet;
 pub use thresholds::ThresholdRange;
-
-type Value = f64;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}

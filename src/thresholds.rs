@@ -1,4 +1,4 @@
-use crate::Value;
+use crate::perf::Value;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -31,7 +31,7 @@ impl ThresholdRange {
     /// This fails fails whenever the value is lower than the given limit
     ///
     /// Parsed as '10'
-    /// Corresponds to:	'< 0 && > 10' or 'outside the range of {0 .. 10}'
+    /// Corresponds to: '< 0 && > 10' or 'outside the range of {0 .. 10}'
     pub fn above_pos<T: Into<Value>>(limit_top: T) -> Self {
         Self::outside(0.0, limit_top.into())
     }
@@ -39,7 +39,7 @@ impl ThresholdRange {
     /// This fails fails whenever the value is lower than the given limit
     ///
     /// Parsed as '10:'
-    /// Corresponds to:	'< 10' or 'outside {10 .. ∞}'
+    /// Corresponds to: '< 10' or 'outside {10 .. ∞}'
     pub fn below<T: Into<Value>>(limit_bottom: T) -> Self {
         Self::outside(limit_bottom.into(), f64::INFINITY)
     }
@@ -55,7 +55,7 @@ impl ThresholdRange {
     /// This fails fails whenever the value is outside the given limits
     ///
     /// Parsed as '10:20'
-    /// Corresponds to 	`< 10 && > 20` or `outside the range of {10 .. 20}`
+    /// Corresponds to `< 10 && > 20` or `outside the range of {10 .. 20}`
     pub fn outside<T: Into<Value>>(start: T, end: T) -> Self {
         Self::new(false, start.into(), end.into())
     }
@@ -63,7 +63,7 @@ impl ThresholdRange {
     /// This fails fails whenever the value is inside the given limits
     ///
     /// Parsed as '@10:20'
-    /// Corresponds to 	`≥ 10 and ≤ 20` or `inside the range of {10 .. 20}`
+    /// Corresponds to `≥ 10 and ≤ 20` or `inside the range of {10 .. 20}`
     pub fn inside<T: Into<Value>>(start: T, end: T) -> Self {
         Self::new(true, start.into(), end.into())
     }

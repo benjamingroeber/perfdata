@@ -1,7 +1,8 @@
 use crate::error::PerfdataParseError;
-use crate::perfdata::Perfdata;
+use crate::perf::Perfdata;
+use crate::perf::Value;
 use crate::thresholds::ThresholdRange;
-use crate::Value;
+use crate::PerfdataSet;
 use std::str::FromStr;
 
 // Source: https://nagios-plugins.org/doc/guidelines.html#AEN200
@@ -201,10 +202,12 @@ fn parse_range(range: &str, default: Value) -> Result<Value, PerfdataParseError>
     Ok(range.parse()?)
 }
 
-impl<'a> Perfdata<'a> {
-    pub fn parse_from_list(s: &'a str) -> Vec<Result<Self, PerfdataParseError>> {
+impl<'a> TryFrom<&'a str> for PerfdataSet<'a> {
+    type Error = PerfdataParseError;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
         let mut remainder = s.trim();
-        let mut perfdata = Vec::new();
+        let mut perfdata = Self::new();
 
         // Perfdata are delimited by spaces, but labels can contain spaces. To avoid handling that,
         // first we search until the next equals sign, which are not allowed in labels.
@@ -213,23 +216,23 @@ impl<'a> Perfdata<'a> {
             if let Some(data_idx) = &remainder[equals_idx..].find(' ') {
                 let (left, right) = remainder.split_at(equals_idx + data_idx);
                 if !left.is_empty() {
-                    perfdata.push(Perfdata::try_from(left));
+                    perfdata.add(Perfdata::try_from(left)?);
                 }
                 remainder = right;
             } else {
-                perfdata.push(Perfdata::try_from(remainder));
+                perfdata.add(Perfdata::try_from(remainder)?);
                 remainder = "";
             }
         }
 
-        perfdata
+        Ok(perfdata)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::perfdata::Unit;
+    use crate::perf::Unit;
     use crate::thresholds::ThresholdRange;
     use strum::IntoEnumIterator;
 
@@ -237,22 +240,21 @@ mod tests {
     fn test_parse_list() {
         let list = " label=10;20;30;0;40;  'foo'=0s; 'with space'=42 'with two spaces'=2     'with  ma ny   spaces'=6   ";
 
-        let parsed = Perfdata::parse_from_list(list);
-
-        assert_eq!(
-            parsed,
-            vec![
-                Ok(Perfdata::unit("label", 10)
-                    .with_warn(ThresholdRange::above_pos(20))
-                    .with_crit(ThresholdRange::above_pos(30))
-                    .with_min(0)
-                    .with_max(40)),
-                Ok(Perfdata::seconds("foo", 0)),
-                Ok(Perfdata::unit("with space", 42)),
-                Ok(Perfdata::unit("with two spaces", 2)),
-                Ok(Perfdata::unit("with  ma ny   spaces", 6))
-            ]
-        )
+        let parsed = PerfdataSet::try_from(list).unwrap();
+        let expected: PerfdataSet = vec![
+            Perfdata::unit("label", 10)
+                .with_warn(ThresholdRange::above_pos(20))
+                .with_crit(ThresholdRange::above_pos(30))
+                .with_min(0)
+                .with_max(40),
+            Perfdata::seconds("foo", 0),
+            Perfdata::unit("with space", 42),
+            Perfdata::unit("with two spaces", 2),
+            Perfdata::unit("with  ma ny   spaces", 6),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(parsed, expected)
     }
 
     #[test]

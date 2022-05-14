@@ -13,12 +13,12 @@ use strum::EnumIter;
 
 pub use data::Perfdata;
 pub use dataset::PerfdataSet;
-pub type Value = f64;
+pub(crate) type Value = f64;
 
 #[cfg_attr(test, derive(EnumIter))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Unit {
+enum Unit {
     None(Value),
     Percentage(Value),
     Seconds(Value),

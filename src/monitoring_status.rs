@@ -2,8 +2,8 @@ use std::fmt::{Display, Formatter};
 
 /// Monitoring Status representing the Status reported to Monitoring Engines like Nagios, Naemon or
 /// Icinga.
-// order matters here for PartialOrd derive
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+// Variant order matters here for PartialOrd derive
 pub enum MonitoringStatus {
     /// Definitive result, all values ore in expected range
     OK,

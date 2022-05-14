@@ -2,6 +2,9 @@ use crate::monitoring_status::MonitoringStatus;
 use crate::Perfdata;
 use std::fmt::{Display, Formatter};
 
+/// A PerfdataSet is a collection of Perfdata.
+/// It can be built via `PerfdataSet::new()`, from Iterators with `Item=<Perfdata>`, or from a
+/// `Vec<Perfdata>`.
 #[derive(Debug, Default, PartialEq)]
 pub struct PerfdataSet<'a> {
     data: Vec<Perfdata<'a>>,
@@ -18,10 +21,13 @@ impl<'a> PerfdataSet<'a> {
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
+
+    /// Returns an iterator over all contained Perfdata
     pub fn data(&self) -> impl Iterator<Item = &Perfdata<'a>> {
         self.data.iter()
     }
 
+    /// Returns an iterator over all Perfdata which exceeds their critical threshold
     pub fn critical(&self) -> impl Iterator<Item = &Perfdata<'a>> {
         self.data().filter(|pd| pd.is_crit())
     }
@@ -29,6 +35,7 @@ impl<'a> PerfdataSet<'a> {
         self.critical().count() > 0
     }
 
+    /// Returns an iterator over all Perfdata which exceeds their warning threshold
     pub fn warning(&self) -> impl Iterator<Item = &Perfdata<'a>> {
         self.data().filter(|pd| pd.is_warn())
     }
@@ -36,10 +43,8 @@ impl<'a> PerfdataSet<'a> {
         self.warning().count() > 0
     }
 
-    pub fn is_degraded(&self) -> bool {
-        self.data().any(|pd| pd.is_warn() || pd.is_crit())
-    }
-
+    /// Returns the MonitoringStatus reflecting the worst status based on Thresholds
+    /// Critical is worse than Warning is worse than OK
     pub fn status(&self) -> MonitoringStatus {
         if self.has_critical() {
             MonitoringStatus::Critical

@@ -5,6 +5,17 @@ use crate::thresholds::ThresholdRange;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
+/// `Perfdata` is the core data structure of this crate. A `Perfdata` represents a  named metric
+/// recurrently observed by a monitoring check. Almost every current monitoring engine is able to
+/// interpret `Perfdata` in its string representation.
+///
+/// `Perfdata` is usually expressed with a Unit which will be used downstream to select the correct
+/// representation when visualizing the data. Additionally a `min` and `max` value can be defined
+/// which can be used for delimiting visualizations.
+///
+/// Critical and Warning [ThresholdRange] instead delimit the ranges where the monitored objects
+/// are considered [Ok](`MonitoringStatus::OK`), [Critical](`MonitoringStatus::Critical`) or in
+/// [Warning](`MonitoringStatus::Warning`) state.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Perfdata<'a> {
@@ -28,47 +39,68 @@ impl<'a> Perfdata<'a> {
         }
     }
 
-    // TODO find a new name
+    /// Create a Perfdata without a unit. This name may be subject to change in the
+    /// near future
+    // TODO find a better name, currently it is kind of the opposite of what it is
     pub fn unit<T: Into<Value>>(label: &'a str, value: T) -> Self {
         Self::new(label, Unit::None(value.into()))
     }
+    /// Create a new Perfdata with percent (%) Unit
     pub fn percentage<T: Into<Value>>(label: &'a str, value: T) -> Self {
         Self::new(label, Unit::Percentage(value.into()))
     }
+
+    /// Create a new Perfdata with seconds (s) Unit
     pub fn seconds<T: Into<Value>>(label: &'a str, value: T) -> Self {
         Self::new(label, Unit::Seconds(value.into()))
     }
+
+    /// Create a new Perfdata with butes (b) Unit
     pub fn bytes<T: Into<Value>>(label: &'a str, value: T) -> Self {
         Self::new(label, Unit::Bytes(value.into()))
     }
+
+    /// Create a new Perfdata as an increasing counter (c)
     pub fn counter<T: Into<Value>>(label: &'a str, value: T) -> Self {
         Self::new(label, Unit::Counter(value.into()))
     }
+
+    /// Create a new Perfdata where the value could not be determined
     pub fn undetermined(label: &'a str) -> Self {
         Self::new(label, Unit::Undetermined)
     }
 
+    /// Add a minimum value to the [Perfdata]
     #[must_use]
     pub fn with_min<T: Into<Value>>(mut self, value: T) -> Self {
         self.min = Some(value.into());
         self
     }
+
+    /// Add a maximum value to the [Perfdata]
     #[must_use]
     pub fn with_max<T: Into<Value>>(mut self, value: T) -> Self {
         self.max = Some(value.into());
         self
     }
+
+    /// If a warning [ThresholdRange] is defined, and the `value` lies inside the defined
+    /// range, the [Perfdata] will be considered in warning (see [is_crit()](`Self::is_crit()`))
     #[must_use]
     pub fn with_warn(mut self, range: ThresholdRange) -> Self {
         self.warn = Some(range);
         self
     }
+
+    /// If a critical [ThresholdRange] is defined, and the `value` lies inside the defined
+    /// range, the [Perfdata] will be considered in warning (see [is_warn()][`Self::is_warn()`]).
     #[must_use]
     pub fn with_crit(mut self, range: ThresholdRange) -> Self {
         self.crit = Some(range);
         self
     }
 
+    /// Current `value` is in the `warn` [ThresholdRange]
     pub fn is_warn(&self) -> bool {
         match self.value() {
             Some(value) => self
@@ -79,6 +111,7 @@ impl<'a> Perfdata<'a> {
         }
     }
 
+    /// Current `value` is in the `crit` [ThresholdRange]
     pub fn is_crit(&self) -> bool {
         match self.value() {
             Some(value) => self
@@ -89,6 +122,7 @@ impl<'a> Perfdata<'a> {
         }
     }
 
+    /// Mapping the status to a [MonitoringStatus]
     pub fn status(&self) -> MonitoringStatus {
         if self.is_crit() {
             MonitoringStatus::Critical
@@ -99,10 +133,11 @@ impl<'a> Perfdata<'a> {
         }
     }
 
-    pub fn has_any_thresholds(&self) -> bool {
+    fn has_any_thresholds_or_limits(&self) -> bool {
         self.warn.is_some() || self.crit.is_some() || self.min.is_some() || self.max.is_some()
     }
 
+    /// The given numerical `Value` of the [Perfdata]
     pub fn value(&self) -> Option<Value> {
         match self.unit {
             Unit::None(v) => Some(v),
@@ -113,6 +148,8 @@ impl<'a> Perfdata<'a> {
             Unit::Undetermined => None,
         }
     }
+
+    /// The given `Label` of the [Perfdata]
     pub fn label(&self) -> &str {
         self.label
     }
@@ -129,7 +166,7 @@ impl Display for Perfdata<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "'{}'={};", self.label, self.unit)?;
 
-        if self.has_any_thresholds() {
+        if self.has_any_thresholds_or_limits() {
             fmt_threshold(f, self.warn)?;
             fmt_threshold(f, self.crit)?;
             fmt_threshold(f, self.min)?;

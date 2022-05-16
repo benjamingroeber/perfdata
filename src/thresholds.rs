@@ -5,6 +5,10 @@ use std::fmt::{Display, Formatter};
 
 // Reference: https://nagios-plugins.org/doc/guidelines.html#THRESHOLDFORMAT
 
+/// A `ThresholdRange` delimits a numerical range in which a [Perfdata](`crate::Perfdata`) Value will be considered
+/// Warning or Critical ( See [Perfdata::with_crit()](`crate::Perfdata::with_crit()`) and [`Perfdata::with_warn()`](`crate::Perfdata::with_warn()`) )
+///
+/// `ThresholdRange`s are implemented to the [Nagios Reference](https://nagios-plugins.org/doc/guidelines.html#THRESHOLDFORMAT)
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ThresholdRange {
@@ -68,6 +72,9 @@ impl ThresholdRange {
         Self::new(true, start.into(), end.into())
     }
 
+    /// This returns true if the given value lies inside the given Threshold and
+    /// as such should produce a critical, or warning response.
+    /// (See also [with_crit()](`crate::Perfdata::with_crit()`) and [with_warn()](`crate::Perfdata::with_warn()`).
     pub fn is_alert<T: Into<Value>>(&self, value: T) -> bool {
         let value = value.into();
         let is_inside = value >= self.start && value <= self.end;

@@ -11,36 +11,46 @@ pub struct PerfdataSet<'a> {
 }
 
 impl<'a> PerfdataSet<'a> {
+    /// Create a new `PerfdataSet`
     pub fn new() -> Self {
         PerfdataSet::default()
     }
+
+    /// Add Perfdata to a `PerfdataSet`
     pub fn add(&mut self, pd: Perfdata<'a>) {
         self.data.push(pd);
     }
 
+    /// Returns true if the `PerfdataSet` does not contain any `Perfdata`
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
-    /// Returns an iterator over all contained Perfdata
+    /// Returns an iterator over all contained `Perfdata`
     pub fn data(&self) -> impl Iterator<Item = &Perfdata<'a>> {
         self.data.iter()
     }
 
-    /// Returns an iterator over all Perfdata which exceeds their critical threshold
+    /// Returns an iterator over all `Perfdata` which exceeds their critical threshold
     pub fn critical(&self) -> impl Iterator<Item = &Perfdata<'a>> {
         self.data().filter(|pd| pd.is_crit())
     }
+
+    /// Returns true if any of the contained `Perfdata`has a critical `Threshold` assigned
+    /// and the value exceeds the `Threshold`
     pub fn has_critical(&self) -> bool {
-        self.critical().count() > 0
+        self.critical().next().is_some()
     }
 
-    /// Returns an iterator over all Perfdata which exceeds their warning threshold
+    /// Returns an iterator over all `Perfdata` which exceeds their warning threshold
     pub fn warning(&self) -> impl Iterator<Item = &Perfdata<'a>> {
         self.data().filter(|pd| pd.is_warn())
     }
+
+    /// Returns true if any of the contained `Perfdata`has a warning `Threshold` assigned
+    /// and the value exceeds the `Threshold`
     pub fn has_warning(&self) -> bool {
-        self.warning().count() > 0
+        self.warning().next().is_some()
     }
 
     /// Returns the MonitoringStatus reflecting the worst status based on Thresholds

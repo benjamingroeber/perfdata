@@ -2,8 +2,6 @@ mod data;
 mod dataset;
 mod parser;
 
-// Reference: https://nagios-plugins.org/doc/guidelines.html#AEN200
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};

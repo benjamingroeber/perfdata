@@ -150,9 +150,5 @@ mod tests {
         assert_eq!(pds_warn.warning().count(), 1);
         assert_eq!(pds_ok.critical().count(), 0);
         assert_eq!(pds_ok.warning().count(), 0);
-
-        assert!(pds_crit.is_degraded());
-        assert!(pds_warn.is_degraded());
-        assert!(!pds_ok.is_degraded());
     }
 }

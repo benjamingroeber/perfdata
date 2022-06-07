@@ -1,5 +1,9 @@
 # Perfdata (Performance Data)
 
+[![Github Tag](https://img.shields.io/github/v/tag/benjamingroeber/perfdata.svg?sort=semver)](https://github.com/benjamingroeber/perfdata)
+[![Crates.io](https://img.shields.io/crates/v/perfdata.svg)](https://crates.io/crates/perfdata)
+[![Documentation](https://docs.rs/perfdata/badge.svg)](https://docs.rs/perfdata)
+
 This library was created to fit basic needs for parsing and creating
 Performance Data commonly used by check commands from monitoring engines
 like Icinga2 or Nagios.
@@ -88,4 +92,4 @@ let pds = PerfdataSet::try_from(input).unwrap();
 Licensed under either of [Apache License](./LICENSE-APACHE), Version 2.0 or [MIT license](./LICENSE-MIT) at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted for
 inclusion in this crate by you, as defined in the Apache-2.0 license, shall be dual
-licensed as above, without any additional terms or conditions. 
+licensed as above, without any additional terms or conditions.

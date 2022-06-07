@@ -16,3 +16,12 @@ pub use monitoring_status::MonitoringStatus;
 pub use perf::Perfdata;
 pub use perf::PerfdataSet;
 pub use thresholds::ThresholdRange;
+
+#[test]
+fn test_formatting() {
+    let result = std::process::Command::new("cargo")
+        .args(["fmt", "--all", "--", "--check"])
+        .status()
+        .unwrap();
+    assert_eq!(result.code(), Some(0));
+}

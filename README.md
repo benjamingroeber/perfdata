@@ -39,17 +39,17 @@ Perfdata can be created with several units of measurements. And will be
 formatted to the spec of the
 [Nagios Plugin Development Guidelines](https://nagios-plugins.org/doc/guidelines.html#AEN200).
 ```rust
-// This will be formatted as 'seconds'=10s
-Perfdata::seconds("seconds", 10);
+// This will be formatted as 'seconds_label'=10s
+Perfdata::seconds("seconds_label", 10);
 
-// This will be formatted as 'percent'=50%
-Perfdata::percent("seconds", 50);
+// This will be formatted as 'percent_label'=50%
+Perfdata::percent("percent_label", 50);
 
-// This will be formatted as 'bytes'=23b
-Perfdata::bytes("bytes", 23);
+// This will be formatted as 'bytes_label'=23b
+Perfdata::bytes("bytes_label", 23);
 
 // This will be formatted as 'counter'=10c;@20:30;30;0;100
-Perfdata::percent("counter", 10)
+Perfdata::counter("counter", 10)
   .with_warn(ThresholdRange::inside(20,30))
   .with_crit(ThresholdRange::above_pos(30))
   .with_min(0)

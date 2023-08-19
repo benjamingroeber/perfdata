@@ -2,6 +2,7 @@
 
 [![Github Tag](https://img.shields.io/github/v/tag/benjamingroeber/perfdata.svg?sort=semver)](https://github.com/benjamingroeber/perfdata)
 [![Crates.io](https://img.shields.io/crates/v/perfdata.svg)](https://crates.io/crates/perfdata)
+[![GH Actions Status](https://img.shields.io/github/actions/workflow/status/benjamingroeber/perfdata/rust.yml?branch=master)](https://github.com/benjamingroeber/perfdata/actions/workflows/rust.yml?query=branch%3Amaster)
 [![Documentation](https://docs.rs/perfdata/badge.svg)](https://docs.rs/perfdata)
 
 This library was created to fit basic needs for parsing and creating

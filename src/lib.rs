@@ -23,5 +23,5 @@ fn test_formatting() {
         .args(["fmt", "--all", "--", "--check"])
         .status()
         .unwrap();
-    assert_eq!(result.code(), Some(0));
+    assert!(result.success());
 }
